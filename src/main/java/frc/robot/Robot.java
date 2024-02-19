@@ -70,17 +70,23 @@ public class Robot extends TimedRobot {
     double x = m_driverController.getLeftX();
     double x2 = m_driverController.getRightX();
 
+    // Deadbands -------------------------
+    if ((y < .1) && (y > -.1)) {
+      y = 0;
+    }
+    if ((x < .1) && (x > -.1)) {
+      x = 0;
+    }
+    if ((x2 < .1) && (x2 > -.1)) {
+      x2 = 0;
+    }
+
     double m_topLeftPower2 = (y + x + x2);
     double m_topRightPower2 = (y - x + x2);
     double m_bottomLeftPower2 = (y - x - x2);
     double m_bottomRightPower2 = (y + x - x2);
 
-    m_topLeftMotor.setInverted(false);
-    m_topRightMotor.setInverted(false);
-    m_bottomLeftMotor.setInverted(false);
-    m_bottomRightMotor.setInverted(false);
-
-    m_topLeftMotor.set(m_topLeftPower2);
+    //m_topLeftMotor.set(m_topLeftPower2);
     m_topRightMotor.set(m_topRightPower2);
     m_bottomLeftMotor.set(m_bottomLeftPower2);
     m_bottomRightMotor.set(m_bottomRightPower2);
@@ -174,6 +180,10 @@ public class Robot extends TimedRobot {
  
 
 // SmartDashboard ----------------------------------------------------
+
+    SmartDashboard.putNumber("y", y);
+    SmartDashboard.putNumber("x", x);
+    SmartDashboard.putNumber("2x", x2);
 
   SmartDashboard.putBoolean("left_Climerin", LeftClimerin.booleanValue());
   SmartDashboard.putBoolean("left_Climerout", LeftClimerout.booleanValue());
