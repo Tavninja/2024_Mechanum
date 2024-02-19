@@ -22,17 +22,17 @@ public class Robot extends TimedRobot {
 
   private final TalonFX m_LeftShooter = new TalonFX(5);
   private final TalonFX m_RightShooter = new TalonFX(7);
-  private final TalonFX m_NoteFlipper = new TalonFX(0);
-  private final TalonFX m_NotePusher = new TalonFX(6);
+  private final TalonFX m_NoteFlipper = new TalonFX(10);
+  private final static CANSparkMax m_NotePusher = new CANSparkMax(6, MotorType.kBrushless);
   private final TalonFX m_LeftClimer = new TalonFX(8);
   private final TalonFX m_RightClimer = new TalonFX(9);
 
   DigitalInput NoteOut = new DigitalInput(0);
   DigitalInput NoteIn = new DigitalInput(1);
 
-  private final double shooterSpeed = .5;
-  private final double NoteFlipperSpeed = .2;
-  private final double NotePusherSpeed = .2;
+  private final double shooterSpeed = .35;
+  private final double NoteFlipperSpeed = .05;
+  private final double NotePusherSpeed = .5;
   private final double LeftClimerSpeed = .2;
   private final double RightClimerSpeed = .2;
 
@@ -55,6 +55,9 @@ public class Robot extends TimedRobot {
 
   private static Boolean RightClimerout = false;
   private static Boolean RightClimerin = false;
+
+  private static boolean LimitSwitchin = false;
+  private static boolean LimitSwitchout = false;
 
   // controllers ------------------------------------
 
@@ -82,25 +85,25 @@ public class Robot extends TimedRobot {
     }
 
     double m_topLeftPower2 = (-y - x - x2);
-    double m_topRightPower2 = (y - x - x2);
+    double m_topRightPower2 = (-y - x - x2);
     double m_bottomLeftPower2 = (-y + x - x2);
     double m_bottomRightPower2 = (y + x - x2);
 
-    m_topLeftMotor.set(m_topLeftPower2);
-    m_topRightMotor.set(m_topRightPower2);
-    m_bottomLeftMotor.set(m_bottomLeftPower2);
-    m_bottomRightMotor.set(m_bottomRightPower2);
+    m_topLeftMotor.set(m_topLeftPower2*.5);
+    m_topRightMotor.set(m_topRightPower2*.5);
+    m_bottomLeftMotor.set(m_bottomLeftPower2*.5);
+    m_bottomRightMotor.set(m_bottomRightPower2*.5);
 
 // opperator controls ---------------------------------------------------------------
 
   //Note Shoot -------------------------------------
    if  (m_opperatorController.getRightTriggerAxis() > .5){ // shooter in
-    m_LeftShooter.set(shooterSpeed);
+    m_LeftShooter.set(-shooterSpeed);
     m_RightShooter.set(shooterSpeed);
         LeftShooterin = true;
         RightShooterin = true;
   } else if (m_opperatorController.getLeftTriggerAxis() > .5) { // shooter out
-    m_LeftShooter.set(-shooterSpeed);
+    m_LeftShooter.set(shooterSpeed);
     m_RightShooter.set(-shooterSpeed);
         LeftShooterout = true;
         RightShooterout = true;
@@ -111,35 +114,43 @@ public class Robot extends TimedRobot {
         LeftShooterout = false;
         RightShooterin = false;
         RightShooterout = false;
-  
-
-  // note out and flip ------------------------------
-  if (m_opperatorController.getRightBumperPressed()){ //note out
+  }
+ 
+  /*// note out and flip ------------------------------
+  if (m_opperatorController.getXButton()){ //note out
     m_NotePusher.set(NotePusherSpeed);
         NotePusherout = true;
-  } else if (NoteOut.get() && m_opperatorController.getRightBumperPressed()){ //note hit back and flip
+  }  else if (NoteOut.get() && m_opperatorController.getRightBumper()){ //note hit back and flip
     m_NotePusher.set(0);
     m_NoteFlipper.set(NoteFlipperSpeed);
         NoteFlipperout = true;
         NotePusherout = false;
-  }else{ // note pusher stop
+        LimitSwitchout = true;
+  } else{ // note pusher stop
     m_NotePusher.set(0);
     m_NoteFlipper.set(0);
         NotePusherout = false;
         NoteFlipperout = false;
+        LimitSwitchout = false;
   }
-
+*/
+if(m_opperatorController.getYButton()){
+   m_NotePusher.set(-NotePusherSpeed);
+} else{
+  m_NotePusher.set(0);
+}
   // note in and stop -------------------------------
-  if (m_opperatorController.getLeftBumperPressed()){ //note in
+  if (m_opperatorController.getLeftBumper()){ //note in
     m_NotePusher.set(-NotePusherSpeed);
         NotePusherin = true;
-  } else if (NoteIn.get() && m_opperatorController.getLeftBumperPressed()){ // note hit bot
+  }  else if (NoteIn.get() && m_opperatorController.getLeftBumper()){ // note hit bot
     m_NotePusher.set(0);
         NotePusherin = true;
+        LimitSwitchin = true;
   } else { // note pusher stop
     m_NotePusher.set(0);
-    m_NoteFlipper.set(0);
         NotePusherin = false;
+        LimitSwitchin = false;
   }
 
   // reset flipper ----------------------------------
@@ -151,6 +162,8 @@ public class Robot extends TimedRobot {
     NoteFlipperout = true;
   } else { // flipper stop
     m_NoteFlipper.set(0);
+    NoteFlipperout = false;
+    NoteFlipperin = false;
   }
 
 
@@ -184,25 +197,28 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("y", y);
     SmartDashboard.putNumber("x", x);
     SmartDashboard.putNumber("2x", x2);
-  }
+  
  
-  SmartDashboard.putBoolean("left_Climerin", LeftClimerin.booleanValue());
-  SmartDashboard.putBoolean("left_Climerout", LeftClimerout.booleanValue());
+  SmartDashboard.putBoolean("left_Climer_in", LeftClimerin.booleanValue());
+  SmartDashboard.putBoolean("left_Climer_out", LeftClimerout.booleanValue());
 
-  SmartDashboard.putBoolean("Right_Climerin", RightClimerin.booleanValue());
-  SmartDashboard.putBoolean("Right_Climerout", RightClimerout.booleanValue());
+  SmartDashboard.putBoolean("Right_Climer_in", RightClimerin.booleanValue());
+  SmartDashboard.putBoolean("Right_Climer_out", RightClimerout.booleanValue());
 
-  SmartDashboard.putBoolean("left_Shooterin", LeftShooterin.booleanValue());
-  SmartDashboard.putBoolean("left_Shooterout", LeftShooterout.booleanValue());
+  SmartDashboard.putBoolean("left_Shooter_in", LeftShooterin.booleanValue());
+  SmartDashboard.putBoolean("left_Shooter_out", LeftShooterout.booleanValue());
 
-  SmartDashboard.putBoolean("Right_Shooterin", RightShooterin.booleanValue());
-  SmartDashboard.putBoolean("Right_Shooterout", RightShooterout.booleanValue());
+  SmartDashboard.putBoolean("Right_Shooter_in", RightShooterin.booleanValue());
+  SmartDashboard.putBoolean("Right_Shooter_out", RightShooterout.booleanValue());
 
-  SmartDashboard.putBoolean("Note_Pusherin", NotePusherin.booleanValue());
-  SmartDashboard.putBoolean("Note_Pusherout", NotePusherout.booleanValue());
+  SmartDashboard.putBoolean("Note_Pusher_in", NotePusherin.booleanValue());
+  SmartDashboard.putBoolean("Note_Pusher_out", NotePusherout.booleanValue());
 
-  SmartDashboard.putBoolean("Note_Fliperin", NoteFlipperin.booleanValue());
-  SmartDashboard.putBoolean("Note_Fliperout", NoteFlipperout.booleanValue());
+  SmartDashboard.putBoolean("Note_Fliper_in", NoteFlipperin.booleanValue());
+  SmartDashboard.putBoolean("Note_Fliper_out", NoteFlipperout.booleanValue());
+
+  SmartDashboard.putBoolean("Limit_Switch_in", LimitSwitchin);
+  SmartDashboard.putBoolean("Limit_Switch_out", LimitSwitchout);
 }
 // Auto Time Contants ------------------------------------------------
 
