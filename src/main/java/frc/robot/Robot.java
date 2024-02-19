@@ -37,7 +37,7 @@ public class Robot extends TimedRobot {
   private final double RightClimerSpeed = .2;
 
   // booleans ---------------------------------------
-
+ 
   private static Boolean LeftShooterout = false;
   private static Boolean LeftShooterin = false;
 
@@ -66,7 +66,7 @@ public class Robot extends TimedRobot {
 
 // Mecanum Drive Math --------------------------------------------------------------
 
-    double y = m_driverController.getLeftY();
+    double y = m_driverController.getLeftY()*-1;
     double x = m_driverController.getLeftX();
     double x2 = m_driverController.getRightX();
 
@@ -81,12 +81,12 @@ public class Robot extends TimedRobot {
       x2 = 0;
     }
 
-    double m_topLeftPower2 = (y + x + x2);
-    double m_topRightPower2 = (y - x + x2);
-    double m_bottomLeftPower2 = (y - x - x2);
+    double m_topLeftPower2 = (-y - x - x2);
+    double m_topRightPower2 = (y - x - x2);
+    double m_bottomLeftPower2 = (-y + x - x2);
     double m_bottomRightPower2 = (y + x - x2);
 
-    //m_topLeftMotor.set(m_topLeftPower2);
+    m_topLeftMotor.set(m_topLeftPower2);
     m_topRightMotor.set(m_topRightPower2);
     m_bottomLeftMotor.set(m_bottomLeftPower2);
     m_bottomRightMotor.set(m_bottomRightPower2);
@@ -111,7 +111,7 @@ public class Robot extends TimedRobot {
         LeftShooterout = false;
         RightShooterin = false;
         RightShooterout = false;
-  }
+  
 
   // note out and flip ------------------------------
   if (m_opperatorController.getRightBumperPressed()){ //note out
@@ -184,7 +184,8 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("y", y);
     SmartDashboard.putNumber("x", x);
     SmartDashboard.putNumber("2x", x2);
-
+  }
+ 
   SmartDashboard.putBoolean("left_Climerin", LeftClimerin.booleanValue());
   SmartDashboard.putBoolean("left_Climerout", LeftClimerout.booleanValue());
 
