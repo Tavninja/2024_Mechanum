@@ -134,24 +134,31 @@ public class Robot extends TimedRobot {
         LimitSwitchout = false;
   }
 */
-if(m_opperatorController.getYButton()){
-   m_NotePusher.set(-NotePusherSpeed);
-} else{
-  m_NotePusher.set(0);
-}
   // note in and stop -------------------------------
-  if (m_opperatorController.getLeftBumper()){ //note in
+  if (m_opperatorController.getRightBumper()){ //note in
     m_NotePusher.set(-NotePusherSpeed);
         NotePusherin = true;
-  }  else if (NoteIn.get() && m_opperatorController.getLeftBumper()){ // note hit bot
-    m_NotePusher.set(0);
-        NotePusherin = true;
-        LimitSwitchin = true;
+        NotePusherout = false;
+  } else if (m_opperatorController.getLeftBumper()){
+    m_NotePusher.set(NotePusherSpeed);
+        NotePusherin = false;
+        NotePusherout = true;
+  } else if (m_opperatorController.getLeftBumper() && NoteOut.get() == false){
+      m_NotePusher.set(0);
+      LimitSwitchout = true;
+  } else if (m_opperatorController.getRightBumper() && NoteIn.get() == false){
+      m_NotePusher.set(0);
+      LimitSwitchin = true;
   } else { // note pusher stop
     m_NotePusher.set(0);
         NotePusherin = false;
+        NotePusherout = false;
         LimitSwitchin = false;
+        LimitSwitchout = false;
   }
+
+    SmartDashboard.putData(NoteOut);
+    SmartDashboard.putData(NoteIn);
 
   // reset flipper ----------------------------------
   if (m_opperatorController.getAButton()) { // flipper left
