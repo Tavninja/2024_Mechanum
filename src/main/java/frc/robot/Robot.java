@@ -33,6 +33,7 @@ public class Robot extends TimedRobot {
   private final static CANSparkMax m_topLeftMotor = new CANSparkMax(1, MotorType.kBrushed);
   private final static CANSparkMax m_topRightMotor = new CANSparkMax(2, MotorType.kBrushed);
   private final static CANSparkMax m_NotePusher = new CANSparkMax(6, MotorType.kBrushless);
+    private final static CANSparkMax m_NoteShoot = new CANSparkMax(11, MotorType.kBrushless);
 
   private final TalonFX m_LeftShooter = new TalonFX(5);
   private final TalonFX m_RightShooter = new TalonFX(7);
@@ -43,13 +44,12 @@ public class Robot extends TimedRobot {
   DigitalInput NoteOut = new DigitalInput(0);
   DigitalInput NoteIn = new DigitalInput(1);
 
-  private final double fastShooterSpeed = .35;
-  private final double NoteFlipperSpeed = .05;
-  private final double NotePusherSpeed = .1;
+  private final double fastShooterSpeed = .45;
+  private final double NoteFlipperSpeed = .1;
+  private final double NotePusherSpeed = .5;
   private final double climerSpeed = .35;
-  private final double slowShooterSpeed = .35;
 
-  private SlewRateLimiter filter = new SlewRateLimiter(2.5);
+  private SlewRateLimiter filter = new SlewRateLimiter(1);
 
   UsbCamera camera1;
   UsbCamera camera2;
@@ -96,18 +96,6 @@ public class Robot extends TimedRobot {
     double x = m_driverController.getLeftX();
     double x2 = m_driverController.getRightX();
 
-    double kp = 0;
-    double ki = 0;
-    double kd = 0;
-
-    PIDController pidController = new PIDController(kp,ki,kd);
-
-    double Y_Speed = 0;
-    double X_Speed = 0;
-    double X2_Speed = 0;
-
-    m_topLeftMotor.set(pidController.calculate(m_driverController.getLeftY(),Y_Speed));
-
     m_topLeftMotor.setInverted(true);
     m_topRightMotor.setInverted(false);
     m_bottomLeftMotor.setInverted(true);
@@ -131,33 +119,18 @@ public class Robot extends TimedRobot {
     double m_bottomLeftPower = (y - x + x2);
     double m_bottomRightPower =(y + x - x2);
 
-    double m_topLeftPower2 = (Y_Speed + X_Speed + X2_Speed);
-    double m_topRightPower2 = (Y_Speed - X_Speed - X2_Speed);
-    double m_bottomLeftPower2 = (Y_Speed - X_Speed + X2_Speed);
-    double m_bottomRightPower2 =(Y_Speed + X_Speed - X2_Speed);
+    //double m_topLeftPower2 = filter.calculate(y + x + x2);
+    //double m_topRightPower2 = filter.calculate(y - x - x2);
+    //double m_bottomLeftPower2 = filter.calculate(y - x + x2);
+    //double m_bottomRightPower2 = filter.calculate(y + x - x2);
 
-    //m_topLeftMotor.set(m_topLeftPower);
-    //m_topRightMotor.set(m_topRightPower);
-    //m_bottomLeftMotor.set(m_bottomLeftPower);
-    //m_bottomRightMotor.set(m_bottomRightPower);
+    m_topLeftMotor.set(m_topLeftPower);
+    m_topRightMotor.set(m_topRightPower);
+    m_bottomLeftMotor.set(m_bottomLeftPower);
+    m_bottomRightMotor.set(m_bottomRightPower);
 
-// opperator controls ---------------------------------------------------------------
+// opperator controls -------------------------------------------------------------
 
-
-/*
-Spark spark = new Spark(0);
-
-// Limit switch on DIO 2
-DigitalInput limit = new DigitalInput(2);
-
-public void autonomousPeriodic() {
-    // Runs the motor forwards at half speed, unless the limit is pressed
-    if(!limit.get()) {
-        spark.set(.5);
-    } else {
-        spark.set(0);
-    }
-} */
   //Note Shoot -------------------------------------
    if  (m_opperatorController.getRightTriggerAxis() > .5){ // shooter in
     m_LeftShooter.set(-fastShooterSpeed);
@@ -169,16 +142,6 @@ public void autonomousPeriodic() {
     m_RightShooter.set(-fastShooterSpeed);
         LeftShooterout = true;
         RightShooterout = true;
-  } else if (m_opperatorController.getXButton()){ // slow shoot out
-    m_LeftShooter.set(slowShooterSpeed);
-    m_RightShooter.set(-slowShooterSpeed);
-        LeftShooterout = true;
-        RightShooterout = true;
-  } else if (m_opperatorController.getYButton()){ // shoot slow in
-    m_RightShooter.set(slowShooterSpeed);
-    m_LeftShooter.set(-slowShooterSpeed);
-        LeftShooterout = true;
-        RightShooterout = true;
   } else { // shooter stop
     m_LeftShooter.set(0); 
     m_RightShooter.set(0);
@@ -187,33 +150,7 @@ public void autonomousPeriodic() {
         RightShooterin = false;
         RightShooterout = false;
   }
- 
-  /*// note out and flip ------------------------------
-  if (m_opperatorController.getXButton()){ //note out
-    m_NotePusher.set(NotePusherSpeed);
-        NotePusherout = true;
-  }  else if (NoteOut.get() && m_opperatorController.getRightBumper()){ //note hit back and flip
-    m_NotePusher.set(0);
-    m_NoteFlipper.set(NoteFlipperSpeed);
-        NoteFlipperout = true;
-        NotePusherout = false;
-        LimitSwitchout = true;
-  } else{ // note pusher stop
-    m_NotePusher.set(0);
-    m_NoteFlipper.set(0);
-        NotePusherout = false;
-        NoteFlipperout = false;
-        LimitSwitchout = false;
-  }
 
-
-  //test limit Switch -------------------------------
-if (NoteOut.get() == false){
- test = true;
-} else {
-  test = false;
-}
-*/
   // note in and stop -------------------------------
   if (m_opperatorController.getRightBumper()){ //note in
     m_NotePusher.set(-NotePusherSpeed);
@@ -223,12 +160,6 @@ if (NoteOut.get() == false){
     m_NotePusher.set(NotePusherSpeed);
         NotePusherin = false;
         NotePusherout = true;
-  } else if (m_opperatorController.getLeftBumper() && (NoteOut.get() == false)){
-      m_NotePusher.set(0);
-      LimitSwitchout = true;
-  } else if (m_opperatorController.getRightBumper() && (NoteIn.get() == false)){
-      m_NotePusher.set(0);
-      LimitSwitchin = true;
   } else { // note pusher stop
     m_NotePusher.set(0);
         NotePusherin = false;
@@ -253,7 +184,6 @@ if (NoteOut.get() == false){
     NoteFlipperin = false;
   }
 
-
   //Climer ------------------------------------------
 
   if (m_driverController.getLeftBumper()){
@@ -275,6 +205,13 @@ if (NoteOut.get() == false){
         RightClimerin = false;
         LeftClimerout = false;
         RightClimerout = false;
+  }
+
+// Push the note into shooter ------------------------
+  if (m_opperatorController.getXButton()){
+    m_NoteShoot.set(-.5);
+  } else {
+    m_NoteShoot.set(0);
   }
 
 // SmartDashboard ----------------------------------------------------
@@ -305,32 +242,34 @@ if (NoteOut.get() == false){
   SmartDashboard.putBoolean("Limit_Switch_in", LimitSwitchin);
   SmartDashboard.putBoolean("Limit_Switch_out", LimitSwitchout);
 
-  SmartDashboard.putNumber("F topLeftPower2", (m_topLeftPower2));
-  SmartDashboard.putNumber("F toprightPower", (m_topRightPower2));
-  SmartDashboard.putNumber("F bottomLeftPower2", (m_bottomLeftPower2));
-  SmartDashboard.putNumber("F m_bottomRightPower2", (m_bottomRightPower2));
-
   SmartDashboard.putNumber("topLeftPower2", (m_topLeftPower));
   SmartDashboard.putNumber("toprightPower", (m_topRightPower));
   SmartDashboard.putNumber("bottomLeftPower2", (m_bottomLeftPower));
   SmartDashboard.putNumber("m_bottomRightPower2", (m_bottomRightPower));
 
-  SmartDashboard.putNumber("F y", filter.calculate(y));
-  SmartDashboard.putNumber("F x", filter.calculate(x));
-  SmartDashboard.putNumber("F x2",filter.calculate(x2));
+  SmartDashboard.putNumber("F y", filter.calculate(m_driverController.getLeftY()));
+  SmartDashboard.putNumber("F x", filter.calculate(m_driverController.getLeftX()));
+  SmartDashboard.putNumber("F x2",filter.calculate(m_driverController.getRightX()));
   
 }
 // Auto Time Contants ------------------------------------------------
 
-private Timer timer;
- private double step1Time = 1;             //
- private double step2Time = step1Time + 1; //
- private double step3Time = step2Time + 1; //
- private double step4Time = step3Time + 1; //
- private double step5Time = step4Time + 1; //
- private double step6Time = step5Time + 1; //
- private static final String kDefaultAuto = "Default";
- private static final String kCustomAuto = "My Auto";
+  // Auto Time Contants
+ private Timer timer;
+ private double step1Time = 1;              //
+ private double step2Time = step1Time + 2;  //
+ private double step3Time = step2Time + .5; //
+ private double step4Time = step3Time + .2; //
+ private double step5Time = step4Time + .2; //
+ private double step6Time = step5Time + 3;  //
+ private static final String Stay_Still = "Stay Still";
+ private static final String Red_1 = "Red 1";
+ private static final String Red_2 = "Red 2";
+ private static final String Red_3 = "Red 3";
+ private static final String Blue_1 = "Blue 1";
+ private static final String Blue_2 = "Blue 2";
+ private static final String Blue_3 = "Blue 3";
+
  private String m_autoSelected;
  private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
@@ -378,8 +317,13 @@ private Timer timer;
     camera2.setConnectionStrategy(ConnectionStrategy.kKeepOpen);
 
 // Auto Switcher ----------------------------------------------------
-   m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
-   m_chooser.addOption("My Auto", kCustomAuto);
+   m_chooser.setDefaultOption("Stay Still", Stay_Still);
+   m_chooser.addOption("Red 1", Red_1);
+   m_chooser.addOption("Red 1", Red_1);
+   m_chooser.addOption("Red 1", Red_1);
+   m_chooser.addOption("Blue 1", Blue_1);
+   m_chooser.addOption("Blue 1", Blue_1);
+   m_chooser.addOption("Blue 1", Blue_1);
    SmartDashboard.putData("Auto choices", m_chooser);
  }
 
@@ -397,32 +341,126 @@ private Timer timer;
  @Override
  public void autonomousPeriodic() {
    switch (m_autoSelected) {
-     case kCustomAuto:
-       Stoped();
-       break;
-     case kDefaultAuto:
+     case Red_1: //--------------------------Red 1
+     if (timer.get() <= step1Time) {
+      
+    } else if (timer.get() <= step2Time) {
+    
+    } else if (timer.get() <= step3Time) {
+    
+    }else if (timer.get() <= step4Time) {
+    
+    } else if (timer.get() <= step5Time) {
+    
+    } else if (timer.get() <= step6Time){
+    
+    } else {
+      Stoped();
+    }
+      break;
+
+     case Red_2: //--------------------------Red 2
+     if (timer.get() <= step1Time) {
+    
+    } else if (timer.get() <= step2Time) {
+      
+    } else if (timer.get() <= step3Time) {
+      
+    }else if (timer.get() <= step4Time) {
+      
+    } else if (timer.get() <= step5Time) {
+      
+    } else if (timer.get() <= step6Time){
+      
+    } else {
+      
+    }
+      break;
+
+     case Red_3: //--------------------------Red 3
+     if (timer.get() <= step1Time) {
+      
+    } else if (timer.get() <= step2Time) {
+      
+    } else if (timer.get() <= step3Time) {
+      
+    }else if (timer.get() <= step4Time) {
+      
+    } else if (timer.get() <= step5Time) {
+      
+    } else if (timer.get() <= step6Time){
+      
+    } else {
+      
+    }
+      break;
+
+     case Blue_1: //--------------------------Blue 1
+     if (timer.get() <= step1Time) {
+      
+    } else if (timer.get() <= step2Time) {
+      
+    } else if (timer.get() <= step3Time) {
+      
+    }else if (timer.get() <= step4Time) {
+      
+    } else if (timer.get() <= step5Time) {
+      
+    } else if (timer.get() <= step6Time){
+      
+    } else {
+      
+    }
+      break;
+
+     case Blue_2: //--------------------------Blue 2
+     if (timer.get() <= step1Time) {
+      
+    } else if (timer.get() <= step2Time) {
+      
+    } else if (timer.get() <= step3Time) {
+      
+    }else if (timer.get() <= step4Time) {
+      
+    } else if (timer.get() <= step5Time) {
+      
+    } else if (timer.get() <= step6Time){
+      
+    } else {
+      
+    }
+      break;
+
+     case Blue_3: //--------------------------Blue 3
+     if (timer.get() <= step1Time) {
+      
+    } else if (timer.get() <= step2Time) {
+      
+    } else if (timer.get() <= step3Time) {
+      
+    }else if (timer.get() <= step4Time) {
+      
+    } else if (timer.get() <= step5Time) {
+      
+    } else if (timer.get() <= step6Time){
+      
+    } else {
+      
+    }
+      break;
+
+     case Stay_Still:
      default:
-       if (timer.get() <= step1Time) {
-         Forward();
-       } else if (timer.get() <= step2Time) {
-         Backwards();
-       } else if (timer.get() <= step3Time) {
-         Left();
-       }else if (timer.get() <= step4Time) {
-         Right();
-       } else if (timer.get() <= step5Time) {
-         Stoped();
-       } else if (timer.get() <= step6Time){
-         Stoped();
-       } else {
-         Stoped();
-       }
-       break;
+         Stopped();
    }
   }
 
 // End ----------------------------------------------------------
 
+  private void Stopped() {
+  // TODO Auto-generated method stub
+  throw new UnsupportedOperationException("Unimplemented method 'Stopped'");
+}
   @Override
   public void robotPeriodic() {}
 
