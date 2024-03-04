@@ -12,8 +12,13 @@ import edu.wpi.first.cscore.MjpegServer;
 import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.cscore.VideoSink;
 import edu.wpi.first.cscore.VideoSource.ConnectionStrategy;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.MecanumDriveKinematics;
+import edu.wpi.first.math.kinematics.MecanumDriveWheelSpeeds;
 import edu.wpi.first.util.PixelFormat;
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
 import edu.wpi.first.wpilibj.DigitalInput;
@@ -28,28 +33,53 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 public class Robot extends TimedRobot {
 
   //Set Motor values --------------------------------------------------------------
+  /**
+   * The drivetrain (mecanum)
+   * @param m_bottomLeftMotor The rear left motor in the drivetrain
+   * @param m_bottomRightMotor The rear right motor in the drivetrain
+   * @param m_topLeftMotor The front left motor in the drivetrain
+   * @param m_topRightMotor The front left motor in the drivetrain
+   * 
+   */
   private final static CANSparkMax m_bottomLeftMotor = new CANSparkMax(4, MotorType.kBrushed);
   private final static CANSparkMax m_bottomRightMotor = new CANSparkMax(3, MotorType.kBrushed);
   private final static CANSparkMax m_topLeftMotor = new CANSparkMax(1, MotorType.kBrushed);
   private final static CANSparkMax m_topRightMotor = new CANSparkMax(2, MotorType.kBrushed);
+  /**
+   * @param m_NotePusher The motor that extends and retracts the note mechanism
+   * @param m_NoteFlipper The motor That Flips the note
+   * @param m_NoteShoot The motor that pushes the note into the shooters 
+   */
   private final static CANSparkMax m_NotePusher = new CANSparkMax(6, MotorType.kBrushless);
     private final static CANSparkMax m_NoteShoot = new CANSparkMax(11, MotorType.kBrushless);
-
+    private final TalonFX m_NoteFlipper = new TalonFX(10);
+  /**
+   * @param m_LeftShoot the motor that controls the left flywheel 
+   * @param m_RightShoot the motor that controls the right flywheel
+   */
   private final TalonFX m_LeftShooter = new TalonFX(5);
   private final TalonFX m_RightShooter = new TalonFX(7);
-  private final TalonFX m_NoteFlipper = new TalonFX(10);
+  /**
+   * @param m_LeftClimer the motor that extends and retracts the left claw
+   * @param m_RightClimer the motor that extends and retracts the right claw
+   */
   private final TalonFX m_LeftClimer = new TalonFX(8);
   private final TalonFX m_RightClimer = new TalonFX(9);
 
-  DigitalInput NoteOut = new DigitalInput(0);
-  DigitalInput NoteIn = new DigitalInput(1);
-
-  private final double fastShooterSpeed = .45;
+  private final double fastShooterSpeed = .5;
   private final double NoteFlipperSpeed = .1;
   private final double NotePusherSpeed = .5;
   private final double climerSpeed = .35;
 
-  private SlewRateLimiter filter = new SlewRateLimiter(1);
+/*   Translation2d m_frontLeftLocation = new Translation2d(-.2794,.2667);
+  Translation2d m_frontRightLocation = new Translation2d(.2794,.2667);
+  Translation2d m_backLeftLocation = new Translation2d(-.2794,-.2667);
+  Translation2d m_backRightLocation = new Translation2d(.2794,-.2667);
+  MecanumDriveKinematics m_Kinematics = new MecanumDriveKinematics(
+    m_frontLeftLocation, m_frontRightLocation, m_backLeftLocation, m_backRightLocation);
+*/
+  private SlewRateLimiter filter = new SlewRateLimiter(2.5);
+  private SlewRateLimiter filter2 = new SlewRateLimiter(2.5);
 
   UsbCamera camera1;
   UsbCamera camera2;
@@ -63,7 +93,7 @@ public class Robot extends TimedRobot {
   private static Boolean RightShooterout = false;
   private static Boolean RightShooterin = false;
 
-  private static Boolean NoteFlipperout = false;
+  private static Boolean NoteFlipperout = false; 
   private static Boolean NoteFlipperin = false;
 
   private static Boolean NotePusherout = false;
@@ -92,43 +122,50 @@ public class Robot extends TimedRobot {
 
     //------------------------------------------------
 
-    double y = m_driverController.getLeftY()*-1;
-    double x = m_driverController.getLeftX();
-    double x2 = m_driverController.getRightX();
+    double y =  MathUtil.applyDeadband(-m_driverController.getLeftY(),.2);
+    double x =  MathUtil.applyDeadband(m_driverController.getLeftX(),.2);
+    double x2 = MathUtil.applyDeadband(m_driverController.getRightX(),.2);
 
     m_topLeftMotor.setInverted(true);
     m_topRightMotor.setInverted(false);
     m_bottomLeftMotor.setInverted(true);
-    m_bottomRightMotor.setInverted(false);
-
-    // Deadbands -------------------------
-    if ((y < .2) && (y > -.2)) {
-      y = 0;
-    }
-    if ((x < .2) && (x > -.2)) {
-      x = 0;
-    }
-    if ((x2 < .2) && (x2 > -.2)) {
-      x2 = 0;
-    }
-
-  // --------------------------------------------------------
-
-    double m_topLeftPower = (y + x + x2);
-    double m_topRightPower = (y - x - x2);
-    double m_bottomLeftPower = (y - x + x2);
-    double m_bottomRightPower =(y + x - x2);
-
-    //double m_topLeftPower2 = filter.calculate(y + x + x2);
-    //double m_topRightPower2 = filter.calculate(y - x - x2);
-    //double m_bottomLeftPower2 = filter.calculate(y - x + x2);
-    //double m_bottomRightPower2 = filter.calculate(y + x - x2);
+    m_bottomRightMotor.setInverted(false); 
+    
+    double m_topLeftPower = (y+x+x2);
+    double m_topRightPower = (y-x-x2);
+    double m_bottomLeftPower = (y-x+x2);
+    double m_bottomRightPower = (y+x-x2);
 
     m_topLeftMotor.set(m_topLeftPower);
     m_topRightMotor.set(m_topRightPower);
     m_bottomLeftMotor.set(m_bottomLeftPower);
     m_bottomRightMotor.set(m_bottomRightPower);
 
+
+  // -------------------------------------------------------- 
+/* 
+    //ChassisSpeeds speeds= new ChassisSpeeds(-filter2.calculate(x),-filter.calculate(y),x2*40);
+    ChassisSpeeds speeds= new ChassisSpeeds(x,y,x2*40);
+    MecanumDriveWheelSpeeds wheelSpeeds = m_Kinematics.toWheelSpeeds(speeds);
+
+    double frontLeft = wheelSpeeds.frontLeftMetersPerSecond/1;
+    double frontRight = wheelSpeeds.frontRightMetersPerSecond/1;
+    double backLeft = wheelSpeeds.rearLeftMetersPerSecond/1;
+    double backRight = wheelSpeeds.rearRightMetersPerSecond/1;
+     
+    if (x2>= 0.1 || x2<=.1){
+      frontRight= frontRight*-1;
+      backLeft = backLeft*-1;
+    } else {
+      frontRight= frontRight*1;
+      backLeft = backLeft*1;
+    }
+
+    m_topLeftMotor.set(frontLeft);
+    m_topRightMotor.set(frontRight);
+    m_bottomLeftMotor.set(backLeft);
+    m_bottomRightMotor.set(backRight);
+*/
 // opperator controls -------------------------------------------------------------
 
   //Note Shoot -------------------------------------
@@ -167,9 +204,6 @@ public class Robot extends TimedRobot {
         LimitSwitchin = false;
         LimitSwitchout = false;
   }
-
-    SmartDashboard.putData(NoteOut);
-    SmartDashboard.putData(NoteIn);
 
   // reset flipper ----------------------------------
   if (m_opperatorController.getAButton()) { // flipper left
@@ -214,6 +248,8 @@ public class Robot extends TimedRobot {
     m_NoteShoot.set(0);
   }
 
+
+
 // SmartDashboard ----------------------------------------------------
 
     SmartDashboard.putNumber("y", y);
@@ -250,25 +286,32 @@ public class Robot extends TimedRobot {
   SmartDashboard.putNumber("F y", filter.calculate(m_driverController.getLeftY()));
   SmartDashboard.putNumber("F x", filter.calculate(m_driverController.getLeftX()));
   SmartDashboard.putNumber("F x2",filter.calculate(m_driverController.getRightX()));
+
+  SmartDashboard.putNumber("y", y);
+  SmartDashboard.putNumber("x", x); 
+  SmartDashboard.putNumber("x2", x2);
+  
+  ///SmartDashboard.putNumber("front Left", frontLeft);
+  ///SmartDashboard.putNumber("front Right", frontRight);
+  ///SmartDashboard.putNumber("back Left", backLeft);
+  ///SmartDashboard.putNumber("back Right", backRight);
   
 }
 // Auto Time Contants ------------------------------------------------
 
   // Auto Time Contants
  private Timer timer;
- private double step1Time = 1;              //
- private double step2Time = step1Time + 2;  //
+ private double step1Time = 1;             //
+ private double step2Time = step1Time + 1; //
  private double step3Time = step2Time + .5; //
- private double step4Time = step3Time + .2; //
- private double step5Time = step4Time + .2; //
- private double step6Time = step5Time + 3;  //
+ private double step4Time = step3Time + 1; //
+ private double step5Time = step4Time + 1; //
+ private double step6Time = step5Time + 1; //
  private static final String Stay_Still = "Stay Still";
- private static final String Red_1 = "Red 1";
- private static final String Red_2 = "Red 2";
- private static final String Red_3 = "Red 3";
- private static final String Blue_1 = "Blue 1";
- private static final String Blue_2 = "Blue 2";
- private static final String Blue_3 = "Blue 3";
+ private static final String Backward = "Backward";
+ private static final String Shoot_Back_Short = "Shoot_Back_Short";
+ private static final String Shoot_Back_Long = "Shoot_Back_Long";
+
 
  private String m_autoSelected;
  private final SendableChooser<String> m_chooser = new SendableChooser<>();
@@ -276,25 +319,13 @@ public class Robot extends TimedRobot {
 // Movement functions ------------------------------------------------
 
  static void Forward(){
-  m_topLeftMotor.set(.5);
-  m_topRightMotor.set(.5);
-  m_bottomLeftMotor.set(.5);
-  m_bottomRightMotor.set(.5);
- }
- static void Backwards(){
   m_topLeftMotor.set(-.5);
-  m_topRightMotor.set(-.5);
-  m_bottomLeftMotor.set(-.5);
-  m_bottomRightMotor.set(-.5);
- }
- static void Left(){
-  m_topLeftMotor.set(.5);
   m_topRightMotor.set(-.5);
   m_bottomLeftMotor.set(-.5);
   m_bottomRightMotor.set(.5);
  }
- static void Right(){
-  m_topLeftMotor.set(-.5);
+ static void Backwards(){
+  m_topLeftMotor.set(.5);
   m_topRightMotor.set(.5);
   m_bottomLeftMotor.set(.5);
   m_bottomRightMotor.set(-.5);
@@ -318,12 +349,10 @@ public class Robot extends TimedRobot {
 
 // Auto Switcher ----------------------------------------------------
    m_chooser.setDefaultOption("Stay Still", Stay_Still);
-   m_chooser.addOption("Red 1", Red_1);
-   m_chooser.addOption("Red 1", Red_1);
-   m_chooser.addOption("Red 1", Red_1);
-   m_chooser.addOption("Blue 1", Blue_1);
-   m_chooser.addOption("Blue 1", Blue_1);
-   m_chooser.addOption("Blue 1", Blue_1);
+   m_chooser.addOption("Backward", Backward);
+   m_chooser.addOption("Shoot_Back_Short", Shoot_Back_Short);
+   m_chooser.addOption("Shoot_Back_Long", Shoot_Back_Long);
+
    SmartDashboard.putData("Auto choices", m_chooser);
  }
 
@@ -341,117 +370,73 @@ public class Robot extends TimedRobot {
  @Override
  public void autonomousPeriodic() {
    switch (m_autoSelected) {
-     case Red_1: //--------------------------Red 1
+     case Backward: //--------------------------Red 1
      if (timer.get() <= step1Time) {
-      
+      Backwards();
     } else if (timer.get() <= step2Time) {
-    
+      Backwards();
     } else if (timer.get() <= step3Time) {
-    
+      Stoped();
     }else if (timer.get() <= step4Time) {
-    
+      Stoped();
     } else if (timer.get() <= step5Time) {
-    
+      Stoped();
     } else if (timer.get() <= step6Time){
-    
+      Stoped();
     } else {
       Stoped();
     }
       break;
 
-     case Red_2: //--------------------------Red 2
+     case Shoot_Back_Short: //--------------------------Red 2
      if (timer.get() <= step1Time) {
-    
+      Stoped();
     } else if (timer.get() <= step2Time) {
-      
+      Stoped();
+          m_LeftShooter.set(-fastShooterSpeed);
+          m_RightShooter.set(fastShooterSpeed);
     } else if (timer.get() <= step3Time) {
-      
+          m_NoteShoot.set(-.5);
     }else if (timer.get() <= step4Time) {
-      
+      Backwards();
+          m_NoteShoot.set(0);
+          m_LeftShooter.set(0);
+          m_RightShooter.set(0);
     } else if (timer.get() <= step5Time) {
-      
+      Backwards();
     } else if (timer.get() <= step6Time){
-      
+      Stoped();
     } else {
-      
+      Stoped();
     }
       break;
 
-     case Red_3: //--------------------------Red 3
-     if (timer.get() <= step1Time) {
-      
+     case Shoot_Back_Long: //--------------------------Red 3
+       if (timer.get() <= step1Time) {
+      Stoped();
     } else if (timer.get() <= step2Time) {
-      
+      Stoped();
+          m_LeftShooter.set(-fastShooterSpeed);
+          m_RightShooter.set(fastShooterSpeed);
     } else if (timer.get() <= step3Time) {
-      
+          m_NoteShoot.set(-.5);
     }else if (timer.get() <= step4Time) {
-      
+      Backwards();
+          m_NoteShoot.set(0);
+          m_LeftShooter.set(0);
+          m_RightShooter.set(0);
     } else if (timer.get() <= step5Time) {
-      
+      Backwards();
     } else if (timer.get() <= step6Time){
-      
+      Backwards();
     } else {
-      
-    }
-      break;
-
-     case Blue_1: //--------------------------Blue 1
-     if (timer.get() <= step1Time) {
-      
-    } else if (timer.get() <= step2Time) {
-      
-    } else if (timer.get() <= step3Time) {
-      
-    }else if (timer.get() <= step4Time) {
-      
-    } else if (timer.get() <= step5Time) {
-      
-    } else if (timer.get() <= step6Time){
-      
-    } else {
-      
-    }
-      break;
-
-     case Blue_2: //--------------------------Blue 2
-     if (timer.get() <= step1Time) {
-      
-    } else if (timer.get() <= step2Time) {
-      
-    } else if (timer.get() <= step3Time) {
-      
-    }else if (timer.get() <= step4Time) {
-      
-    } else if (timer.get() <= step5Time) {
-      
-    } else if (timer.get() <= step6Time){
-      
-    } else {
-      
-    }
-      break;
-
-     case Blue_3: //--------------------------Blue 3
-     if (timer.get() <= step1Time) {
-      
-    } else if (timer.get() <= step2Time) {
-      
-    } else if (timer.get() <= step3Time) {
-      
-    }else if (timer.get() <= step4Time) {
-      
-    } else if (timer.get() <= step5Time) {
-      
-    } else if (timer.get() <= step6Time){
-      
-    } else {
-      
+      Stoped();
     }
       break;
 
      case Stay_Still:
      default:
-         Stopped();
+         Stoped();
    }
   }
 
